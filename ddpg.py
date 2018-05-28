@@ -25,19 +25,19 @@ class Actor(nn.Module):
         self.action_space = action_space
         num_outputs = action_space.shape[0]
 
-        self.bn0 = nn.BatchNorm1d(num_inputs)
-        self.bn0.weight.data.fill_(1)
-        self.bn0.bias.data.fill_(0)
+        #self.bn0 = nn.BatchNorm1d(num_inputs)
+        #self.bn0.weight.data.fill_(1)
+        #self.bn0.bias.data.fill_(0)
 
-        self.linear1 = nn.Linear(num_inputs, hidden_size)
-        self.bn1 = nn.BatchNorm1d(hidden_size)
-        self.bn1.weight.data.fill_(1)
-        self.bn1.bias.data.fill_(0)
+        self.linear1 = nn.Linear(num_inputs, hidden_size)   # has 2 parameters: weights, biases
+        #self.bn1 = nn.BatchNorm1d(hidden_size)
+        #self.bn1.weight.data.fill_(1)
+        #self.bn1.bias.data.fill_(0)
 
         self.linear2 = nn.Linear(hidden_size, hidden_size)
-        self.bn2 = nn.BatchNorm1d(hidden_size)
-        self.bn2.weight.data.fill_(1)
-        self.bn2.bias.data.fill_(0)
+        #self.bn2 = nn.BatchNorm1d(hidden_size)
+        #self.bn2.weight.data.fill_(1)
+        #self.bn2.bias.data.fill_(0)
 
         self.mu = nn.Linear(hidden_size, num_outputs)
         self.mu.weight.data.mul_(0.1)
@@ -49,7 +49,7 @@ class Actor(nn.Module):
 
     def forward(self, inputs):
         x = inputs
-        x = self.bn0(x)
+        #x = self.bn0(x)
         x = F.tanh(self.linear1(x))
         x = F.tanh(self.linear2(x))
 

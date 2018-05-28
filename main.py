@@ -2,6 +2,8 @@ import argparse
 import math
 from collections import namedtuple
 from itertools import count
+import random
+from operator import attrgetter
 
 import gym
 import numpy as np
@@ -50,26 +52,97 @@ def parse_arguments():
                         help='render the environment')
 
 class Evo():
-    def __init__(self, num_evo_actors):
+    def __init__(self, num_evo_actors, evo_episodes=1):
+        '''
+        :param num_evo_actors: This is the number of genes/actors you want to have in the population
+        :param evo_episodes: This is the number of evaluation episodes for each gene. See Algo1: 7, and Table 1
+        population: initalizes 10 genes/actors
+        num_elites: number of genes/actor that are selected, and do not undergo mutation (unless they are
+                    selected again in the tournament selection
+        tournament_genes: number of randomly selected genes to take the max(fitness) from,
+                        and then put it back into the population
+
+        noise_mean: mean for the gaussian noise for mutation
+        noise_stddev: standard deviation for the gaussian noise for mutation
+        '''
         self.num_actors = num_evo_actors
         self.population = [DDPG(args.gamma, args.tau, args.hidden_size,
                            env.observation_space.shape[0], env.action_space) for _ in range(10)]
         print("Initializing Evolutionary Actors")
+        self.evo_episodes = evo_episodes
+        self.num_elites = 3
+        self.tournament_genes = 3
+
+        self.noise_mean = 0.0
+        self.noise_stddev = 0.01
 
     def initialize_fitness(self):
         for gene in self.population:
             gene.fitness = 0.0
+        print("Initialized gene fitness")
 
     def evaluate_pop(self):
-        # for actor in self.population:
-        #
-        pass
+        for gene in self.population:
+            fitness = []
+            for i_episode in range(self.evo_episodes):
+                state = torch.Tensor([env.reset()])
+                episode_reward = 0
+                for t in range(args.num_steps):
+                    action = gene.select_action(state)
+                    next_state, reward, done, _ = env.step(action.numpy()[0])
+                    episode_reward += reward
 
-    def mutation(self):
-        pass
+                    action = torch.Tensor(action)
+                    mask = torch.Tensor([not done])
+                    next_state = torch.Tensor([next_state])
+                    reward = torch.Tensor([reward])
 
-    def selection(self):
-        pass
+                    memory.push(state, action, mask, next_state, reward)
+                    state = next_state
+
+                    if done:
+                        break
+                    # <end of time-steps>
+                fitness.append(episode_reward)
+                # <end of episodes>
+            fitness = sum(fitness) / self.evo_episodes  # Algo2: 12
+            gene.fitness = fitness
+        print("All genes evaluated")
+        print()
+
+    def rank_population_selection(self):
+        '''
+        This function takes the current evaluated population (of k , then ranks them according to their fitness,
+        then selects a number of elites (e), and then selects a set S of (k-e) using tournament selection.
+        It then calls the mutation function to add mutation to the set S of genes.
+        In the end this will replace the current population with a new one.
+        '''
+        ranked_pop = sorted(evo.population, key=lambda x: x.fitness, reverse=True)  # Algo1: 9
+        elites = ranked_pop[:self.num_elites]
+        set_s = []
+
+        for i in range(len(ranked_pop)-len(elites)):
+            tournament_genes = [random.choice(ranked_pop) for _ in range(self.tournament_genes)]
+            tournament_winner = max(tournament_genes, key=attrgetter('fitness'))
+            set_s.append(tournament_winner)
+
+        mutated_set_S = self.mutation(set_s)
+        # TODO: append the mutated set to population along with elites
+
+    def mutation(self, set):
+        """
+        :param set: This is the set of (k-e) genes that are going to be mutated by adding noise
+        :return: Returns the mutated set of (k-e) genes
+
+        Adds noise to the weights and biases of each layer of the network
+        """
+        for gene in set:
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set[0].actor.linear1.weight))
+            noise = torch.FloatTensor(noise)
+            gene.actor.linear1.weight.data = gene.actor.linear1.weight.data + noise
+
+
 
 
 
@@ -109,7 +182,7 @@ if __name__ == "__main__":
     '''
     evo = Evo(10)
     evo.initialize_fitness()
-
+    evo.evaluate_pop()
 
     '''
     MOVE THE TRAINING CODE BELOW TO ITS RESPECTIVE FUNCTIONS

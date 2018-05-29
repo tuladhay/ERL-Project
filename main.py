@@ -15,6 +15,7 @@ from naf import NAF
 from normalized_actions import NormalizedActions
 from ounoise import OUNoise
 from replay_memory import ReplayMemory, Transition
+import pickle
 
 
 def parse_arguments():
@@ -72,10 +73,12 @@ class Evo():
         self.evo_episodes = evo_episodes
         self.elite_percentage = 0.1
         self.num_elites = int(self.elite_percentage*self.num_actors)
-        self.tournament_genes = 3
+        self.tournament_genes = 3   # TODO: make it a percentage
 
         self.noise_mean = 0.0
-        self.noise_stddev = 0.01
+        self.noise_stddev = 0.1
+
+        self.save_fitness = []
 
     def initialize_fitness(self):
         '''
@@ -137,6 +140,8 @@ class Evo():
         self.population = elites + mutated_set_S
         print("Best fitness = " + str(elites[0].fitness))
 
+        self.save_fitness.append(elites[0].fitness)
+
     def mutation(self, set):
         """
         :param set: This is the set of (k-e) genes that are going to be mutated by adding noise
@@ -162,7 +167,7 @@ class Evo():
                 noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
                                          size=np.shape(param))
                 noise = torch.FloatTensor(noise)
-                param = param + noise
+                param = param + noise    # TODO: HERE IS A PROBLEM, PARAM isnt updating anything!!!
         #print("Mutation done")
         return set
 
@@ -207,6 +212,7 @@ if __name__ == "__main__":
 
     # TODO: MOVE THE TRAINING CODE BELOW TO ITS RESPECTIVE FUNCTIONS
     rewards = []
+
     for i_episode in range(args.num_episodes):
         '''
         Here, num_episodes correspond to the generations in Algo 1.
@@ -273,4 +279,7 @@ if __name__ == "__main__":
         # print("Episode: {}, noise: {}, reward: {}, average reward: {}".format(i_episode, ounoise.scale,
         #                                                                       rewards[-1], np.mean(rewards[-100:])))
         print("Episode: " + str(i_episode))
+
     env.close()
+    pickle.dump(evo.save_fitness, open("saved_fitness_progress"), 'wb')
+    pickle.dump(evo.save_fitness, open("saved_fitness_progress_pickle.p"), 'wb')

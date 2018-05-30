@@ -41,7 +41,7 @@ def parse_arguments():
                         help='batch size (default: 128)')
     parser.add_argument('--num_steps', type=int, default=1000, metavar='N',
                         help='max episode length (default: 1000)')
-    parser.add_argument('--num_episodes', type=int, default=3000, metavar='N',
+    parser.add_argument('--num_episodes', type=int, default=40000, metavar='N',
                         help='number of episodes (default: 1000)')
     parser.add_argument('--hidden_size', type=int, default=128, metavar='N',
                         help='number of episodes (default: 128)')
@@ -79,6 +79,7 @@ class Evo():
         self.noise_stddev = 0.1
 
         self.save_fitness = []
+        self.best_policy = self.population[0]    # for saving policy purposes
 
     def initialize_fitness(self):
         '''
@@ -115,8 +116,6 @@ class Evo():
                 # <end of episodes>
             fitness = sum(fitness) / self.evo_episodes  # Algo2: 12
             gene.fitness = fitness
-        #print("All genes evaluated")
-        #print()
 
     def rank_pop_selection_mutation(self):
         '''
@@ -127,6 +126,7 @@ class Evo():
         '''
         ranked_pop = sorted(self.population, key=lambda x: x.fitness, reverse=True)  # Algo1: 9
         elites = ranked_pop[:self.num_elites]
+        self.best_policy = elites[0]    # for saving policy purposes
         set_s = []
 
         for i in range(len(ranked_pop)-len(elites)):
@@ -148,27 +148,64 @@ class Evo():
         :return: Returns the mutated set of (k-e) genes
 
         Adds noise to the weights and biases of each layer of the network
+        But why is a noise (out of 1) being added? Since we cant really say how big or small the parameters should be.
         """
-        # for gene in set:
-        #     noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-        #                              size=np.shape(set[0].actor.linear1.weight))
-        #     noise = torch.FloatTensor(noise)
-        #
-        #     gene.actor.linear1.weight.data = gene.actor.linear1.weight.data + noise
-
         for gene in set:
-            for param in gene.actor.parameters():
-                '''
-                Loop through all the parameters in the actor network.
-                The params are the values of the weights and biases of the network.
-                for example: for a linear layer there will exist two params
-                You can figure out each param by looking at the Actor Class in ddpg.py
-                '''
-                noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                         size=np.shape(param))
-                noise = torch.FloatTensor(noise)
-                param = param + noise    # TODO: HERE IS A PROBLEM, PARAM isnt updating anything!!!
-        #print("Mutation done")
+            ''' Noise to Linear 1 weights and biases'''
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set[0].actor.linear1.weight))
+            noise = torch.FloatTensor(noise)
+            # gene.actor.linear1.weight.data = gene.actor.linear1.weight.data + noise
+            noise = torch.mul(gene.actor.linear1.weight.data, noise)
+            gene.actor.linear1.weight.data = gene.actor.linear1.weight.data + noise
+
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set[0].actor.linear1.bias))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(gene.actor.linear1.bias.data, noise)
+            gene.actor.linear1.bias.data = gene.actor.linear1.bias.data + noise
+
+            '''Noise to Linear 2 weights and biases'''
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set[0].actor.linear2.weight))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(gene.actor.linear2.weight.data, noise)
+            gene.actor.linear2.weight.data = gene.actor.linear2.weight.data + noise
+
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set[0].actor.linear2.bias))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(gene.actor.linear2.bias.data, noise)
+            gene.actor.linear2.bias.data = gene.actor.linear2.bias.data + noise
+
+            ''' Noise to mu layer weights and biases'''
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set[0].actor.mu.weight))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(gene.actor.mu.weight.data, noise)
+            gene.actor.mu.weight.data = gene.actor.mu.weight.data + noise
+
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set[0].actor.mu.bias))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(gene.actor.mu.bias.data, noise)
+            gene.actor.mu.bias.data = gene.actor.mu.bias.data + noise
+
+
+        # for gene in set:
+        #     param_list = list(gene.actor.parameters())
+        #     for i in range(len(param_list)):
+        #         '''
+        #         Loop through all the parameters in the actor network.
+        #         The params are the values of the weights and biases of the network.
+        #         for example: for a linear layer there will exist two params
+        #         You can figure out each param by looking at the Actor Class in ddpg.py
+        #         '''
+        #         noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+        #                                  size=np.shape(param_list[i]))
+        #         noise = torch.FloatTensor(noise)
+        #             # TODO: HERE IS A PROBLEM, PARAM isnt updating anything!!!
+
         return set
 
 
@@ -177,6 +214,7 @@ class Evo():
 if __name__ == "__main__":
     parse_arguments()
     args = parser.parse_args()
+    args.env_name = "InvertedDoublePendulum-v2"
 
     env = NormalizedActions(gym.make(args.env_name))
     env = wrappers.Monitor(env, '/tmp/{}-experiment'.format(args.env_name), force=True)
@@ -281,5 +319,7 @@ if __name__ == "__main__":
         print("Episode: " + str(i_episode))
 
     env.close()
-    pickle.dump(evo.save_fitness, open("saved_fitness_progress"), 'wb')
-    pickle.dump(evo.save_fitness, open("saved_fitness_progress_pickle.p"), 'wb')
+    pickling_on = open("InvertedDoublePendulumV2.p", "wb")
+    pickle.dump(evo.save_fitness, pickling_on)
+    pickling_on.close()
+    torch.save(evo.best_policy.actor.state_dict(), 'trained_params_InvertedDoublePendulumV2.pth')

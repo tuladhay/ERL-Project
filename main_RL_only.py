@@ -4,7 +4,6 @@ from collections import namedtuple
 from itertools import count
 import random
 from operator import attrgetter
-import copy
 
 import gym
 import numpy as np
@@ -42,7 +41,7 @@ def parse_arguments():
                         help='batch size (default: 128)')
     parser.add_argument('--num_steps', type=int, default=1000, metavar='N',
                         help='max episode length (default: 1000)')
-    parser.add_argument('--num_episodes', type=int, default=5000, metavar='N',
+    parser.add_argument('--num_episodes', type=int, default=2000, metavar='N',
                         help='number of episodes (default: 1000)')
     parser.add_argument('--hidden_size', type=int, default=128, metavar='N',
                         help='number of episodes (default: 128)')
@@ -53,8 +52,7 @@ def parse_arguments():
     parser.add_argument('--render', action='store_true',
                         help='render the environment')
 
-
-class Evo:
+class Evo():
     def __init__(self, num_evo_actors, evo_episodes=1):
         '''
         :param num_evo_actors: This is the number of genes/actors you want to have in the population
@@ -140,60 +138,77 @@ class Evo:
         self.population = []
         # Addition of lists
         self.population = elites + mutated_set_S
-        # print("Best fitness = " + str(elites[0].fitness))
+        print("Best fitness = " + str(elites[0].fitness))
 
         self.save_fitness.append(elites[0].fitness)
 
-    def mutation(self, set_s):
+    def mutation(self, set):
         """
-        :param set_s: This is the set of (k-e) genes that are going to be mutated by adding noise
+        :param set: This is the set of (k-e) genes that are going to be mutated by adding noise
         :return: Returns the mutated set of (k-e) genes
 
         Adds noise to the weights and biases of each layer of the network
         But why is a noise (out of 1) being added? Since we cant really say how big or small the parameters should be.
         """
-        for i in range(len(set_s)):
+        for gene in set:
             ''' Noise to Linear 1 weights and biases'''
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set_s[i].actor.linear1.weight))
+                                     size=np.shape(set[0].actor.linear1.weight))
             noise = torch.FloatTensor(noise)
             # gene.actor.linear1.weight.data = gene.actor.linear1.weight.data + noise
-            noise = torch.mul(set_s[i].actor.linear1.weight.data, noise)
-            set_s[i].actor.linear1.weight.data = set_s[i].actor.linear1.weight.data + noise
+            noise = torch.mul(gene.actor.linear1.weight.data, noise)
+            gene.actor.linear1.weight.data = gene.actor.linear1.weight.data + noise
 
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set_s[i].actor.linear1.bias))
+                                     size=np.shape(set[0].actor.linear1.bias))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(set_s[i].actor.linear1.bias.data, noise)
-            set_s[i].actor.linear1.bias.data = set_s[i].actor.linear1.bias.data + noise
+            noise = torch.mul(gene.actor.linear1.bias.data, noise)
+            gene.actor.linear1.bias.data = gene.actor.linear1.bias.data + noise
 
             '''Noise to Linear 2 weights and biases'''
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set_s[i].actor.linear2.weight))
+                                     size=np.shape(set[0].actor.linear2.weight))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(set_s[i].actor.linear2.weight.data, noise)
-            set_s[i].actor.linear2.weight.data = set_s[i].actor.linear2.weight.data + noise
+            noise = torch.mul(gene.actor.linear2.weight.data, noise)
+            gene.actor.linear2.weight.data = gene.actor.linear2.weight.data + noise
 
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set_s[i].actor.linear2.bias))
+                                     size=np.shape(set[0].actor.linear2.bias))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(set_s[i].actor.linear2.bias.data, noise)
-            set_s[i].actor.linear2.bias.data = set_s[i].actor.linear2.bias.data + noise
+            noise = torch.mul(gene.actor.linear2.bias.data, noise)
+            gene.actor.linear2.bias.data = gene.actor.linear2.bias.data + noise
 
             ''' Noise to mu layer weights and biases'''
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set_s[i].actor.mu.weight))
+                                     size=np.shape(set[0].actor.mu.weight))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(set_s[i].actor.mu.weight.data, noise)
-            set_s[i].actor.mu.weight.data = set_s[i].actor.mu.weight.data + noise
+            noise = torch.mul(gene.actor.mu.weight.data, noise)
+            gene.actor.mu.weight.data = gene.actor.mu.weight.data + noise
 
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set_s[i].actor.mu.bias))
+                                     size=np.shape(set[0].actor.mu.bias))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(set_s[i].actor.mu.bias.data, noise)
-            set_s[i].actor.mu.bias.data = set_s[i].actor.mu.bias.data + noise
+            noise = torch.mul(gene.actor.mu.bias.data, noise)
+            gene.actor.mu.bias.data = gene.actor.mu.bias.data + noise
 
-        return set_s
+
+        # for gene in set:
+        #     param_list = list(gene.actor.parameters())
+        #     for i in range(len(param_list)):
+        #         '''
+        #         Loop through all the parameters in the actor network.
+        #         The params are the values of the weights and biases of the network.
+        #         for example: for a linear layer there will exist two params
+        #         You can figure out each param by looking at the Actor Class in ddpg.py
+        #         '''
+        #         noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+        #                                  size=np.shape(param_list[i]))
+        #         noise = torch.FloatTensor(noise)
+        #             # TODO: HERE IS A PROBLEM, PARAM isnt updating anything!!!
+
+        return set
+
+
 
 
 if __name__ == "__main__":
@@ -202,7 +217,7 @@ if __name__ == "__main__":
     args.env_name = "Swimmer-v2"
 
     env = NormalizedActions(gym.make(args.env_name))
-    # env = wrappers.Monitor(env, '/tmp/{}-experiment'.format(args.env_name), force=True)
+    #env = wrappers.Monitor(env, '/tmp/{}-experiment'.format(args.env_name), force=True)
     env.seed(args.seed)
 
     torch.manual_seed(args.seed)
@@ -230,8 +245,8 @@ if __name__ == "__main__":
     '''
     Initialize the Evolution Part
     '''
-    evo = Evo(10)
-    evo.initialize_fitness()
+    # evo = Evo(10)
+    # evo.initialize_fitness()
 
     # TODO: MOVE THE TRAINING CODE BELOW TO ITS RESPECTIVE FUNCTIONS
     rewards = []
@@ -241,72 +256,68 @@ if __name__ == "__main__":
         Here, num_episodes correspond to the generations in Algo 1.
         In every generation, the population is evaluated, ranked
         '''
-        evo.evaluate_pop()
-        evo.rank_pop_selection_mutation()
-
-        print("Fitness = " + str(evo.best_policy.fitness))
+        # evo.evaluate_pop()
+        # evo.rank_pop_selection_mutation()
 
         ''' After this is the DDPG part. Commented out to test the evolutionary part'''
-        # if i_episode < args.num_episodes // 2:
-        #     state = torch.Tensor([env.reset()])     # algo line 6
-        #     ounoise.scale = (args.noise_scale - args.final_noise_scale) * max(0, args.exploration_end -
-        #                                                                       i_episode) / args.exploration_end + args.final_noise_scale
-        #     ounoise.reset()
-        #     episode_reward = 0
-        #     for t in range(args.num_steps):     # line 7
-        #         # forward pass through the actor network
-        #         action = agent.select_action(state, ounoise)    # line 8
-        #         next_state, reward, done, _ = env.step(action.numpy()[0])   # line 9
-        #         episode_reward += reward
-        #
-        #         action = torch.Tensor(action)
-        #         mask = torch.Tensor([not done])
-        #         next_state = torch.Tensor([next_state])
-        #         reward = torch.Tensor([reward])
-        #
-        #         if i_episode % 10 == 0:
-        #             env.render()
-        #
-        #         memory.push(state, action, mask, next_state, reward)    # line 10
-        #
-        #         state = next_state
-        #
-        #         if len(memory) > args.batch_size * 5:
-        #             for _ in range(args.updates_per_step):
-        #                 transitions = memory.sample(args.batch_size)    # line 11
-        #                 batch = Transition(*zip(*transitions))
-        #
-        #                 agent.update_parameters(batch)
-        #
-        #         if done:
-        #
-        #             break
-        #     rewards.append(episode_reward)
-        # else:
-        #     state = torch.Tensor([env.reset()])
-        #     episode_reward = 0
-        #     for t in range(args.num_steps):
-        #         action = agent.select_action(state)
-        #
-        #         next_state, reward, done, _ = env.step(action.numpy()[0])
-        #         episode_reward += reward
-        #
-        #         next_state = torch.Tensor([next_state])
-        #
-        #         if i_episode % 10 == 0:
-        #             env.render()
-        #
-        #         state = next_state
-        #         if done:
-        #             break
-        #
-        #     rewards.append(episode_reward)
-        # print("Episode: {}, noise: {}, reward: {}, average reward: {}".format(i_episode, ounoise.scale,
-        #                                                                       rewards[-1], np.mean(rewards[-100:])))
-        print("Episode: " + str(i_episode))
+        if i_episode < args.num_episodes // 2:
+            state = torch.Tensor([env.reset()])     # algo line 6
+            ounoise.scale = (args.noise_scale - args.final_noise_scale) * max(0, args.exploration_end -
+                                                                              i_episode) / args.exploration_end + args.final_noise_scale
+            ounoise.reset()
+            episode_reward = 0
+            for t in range(args.num_steps):     # line 7
+                # forward pass through the actor network
+                action = agent.select_action(state, ounoise)    # line 8
+                next_state, reward, done, _ = env.step(action.numpy()[0])   # line 9
+                episode_reward += reward
+
+                action = torch.Tensor(action)
+                mask = torch.Tensor([not done])
+                next_state = torch.Tensor([next_state])
+                reward = torch.Tensor([reward])
+
+                # if i_episode % 200 == 0:
+                #     env.render()
+
+                memory.push(state, action, mask, next_state, reward)    # line 10
+
+                state = next_state
+
+                if len(memory) > args.batch_size * 5:
+                    for _ in range(args.updates_per_step):
+                        transitions = memory.sample(args.batch_size)    # line 11
+                        batch = Transition(*zip(*transitions))
+
+                        agent.update_parameters(batch)
+
+                if done:
+
+                    break
+            rewards.append(episode_reward)
+        else:
+            state = torch.Tensor([env.reset()])
+            episode_reward = 0
+            for t in range(args.num_steps):
+                action = agent.select_action(state)
+
+                next_state, reward, done, _ = env.step(action.numpy()[0])
+                episode_reward += reward
+
+                next_state = torch.Tensor([next_state])
+
+                # if i_episode % 200 == 0:
+                #     env.render()
+
+                state = next_state
+                if done:
+                    break
+
+            rewards.append(episode_reward)
+        print("Episode: {}, noise: {}, reward: {}, average reward: {}".format(i_episode, ounoise.scale,
+                                                                              rewards[-1], np.mean(rewards[-100:])))
+
+        # print("Episode: " + str(i_episode))
 
     env.close()
-    pickling_on = open("SwimmerV2.p", "wb")
-    pickle.dump(evo.save_fitness, pickling_on)
-    pickling_on.close()
-    torch.save(evo.best_policy.actor.state_dict(), 'trained_params_SwimmerV2.pth')
+

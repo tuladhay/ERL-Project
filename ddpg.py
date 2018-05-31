@@ -38,10 +38,12 @@ class Actor(nn.Module):
         #self.bn2 = nn.BatchNorm1d(hidden_size)
         #self.bn2.weight.data.fill_(1)
         #self.bn2.bias.data.fill_(0)
+        self.linear2.weight.data.mul_(10)
+        self.linear2.bias.data.mul_(10)
 
         self.mu = nn.Linear(hidden_size, num_outputs)
-        self.mu.weight.data.mul_(0.1)
-        self.mu.bias.data.mul_(0.1)
+        self.mu.weight.data.mul_(10)
+        self.mu.bias.data.mul_(10)
 
         print("num_actions = " + str(num_outputs))
         print("num_inputs = " + str(num_inputs))

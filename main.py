@@ -81,7 +81,7 @@ class Evo:
         self.noise_stddev = 0.1
 
         self.save_fitness = []
-        self.best_policy = self.population[0]    # for saving policy purposes
+        self.best_policy = copy.deepcopy(self.population[0])    # for saving policy purposes
 
     def initialize_fitness(self):
         '''
@@ -117,7 +117,7 @@ class Evo:
                 fitness.append(episode_reward)
                 # <end of episodes>
             fitness = sum(fitness) / self.evo_episodes  # Algo2: 12
-            gene.fitness = fitness
+            gene.fitness = copy.copy(fitness)
 
     def rank_pop_selection_mutation(self):
         '''
@@ -126,7 +126,7 @@ class Evo:
         It then calls the mutation function to add mutation to the set S of genes.
         In the end this will replace the current population with a new one.
         '''
-        ranked_pop = sorted(self.population, key=lambda x: x.fitness, reverse=True)  # Algo1: 9
+        ranked_pop = copy.deepcopy(sorted(self.population, key=lambda x: x.fitness, reverse=True))  # Algo1: 9
         elites = ranked_pop[:self.num_elites]
         self.best_policy = elites[0]    # for saving policy purposes
         set_s = []
@@ -134,12 +134,12 @@ class Evo:
         for i in range(len(ranked_pop)-len(elites)):
             tournament_genes = [random.choice(ranked_pop) for _ in range(self.tournament_genes)]
             tournament_winner = max(tournament_genes, key=attrgetter('fitness'))
-            set_s.append(tournament_winner)
+            set_s.append(copy.deepcopy(tournament_winner))
 
-        mutated_set_S = self.mutation(set_s)
+        mutated_set_S = copy.deepcopy(self.mutation(set_s))
         self.population = []
         # Addition of lists
-        self.population = elites + mutated_set_S
+        self.population = copy.deepcopy(elites + mutated_set_S)
         # print("Best fitness = " + str(elites[0].fitness))
 
         self.save_fitness.append(elites[0].fitness)
@@ -159,39 +159,39 @@ class Evo:
             noise = torch.FloatTensor(noise)
             # gene.actor.linear1.weight.data = gene.actor.linear1.weight.data + noise
             noise = torch.mul(set_s[i].actor.linear1.weight.data, noise)
-            set_s[i].actor.linear1.weight.data = set_s[i].actor.linear1.weight.data + noise
+            set_s[i].actor.linear1.weight.data = copy.deepcopy(set_s[i].actor.linear1.weight.data + noise)
 
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
                                      size=np.shape(set_s[i].actor.linear1.bias))
             noise = torch.FloatTensor(noise)
             noise = torch.mul(set_s[i].actor.linear1.bias.data, noise)
-            set_s[i].actor.linear1.bias.data = set_s[i].actor.linear1.bias.data + noise
+            set_s[i].actor.linear1.bias.data = copy.deepcopy(set_s[i].actor.linear1.bias.data + noise)
 
             '''Noise to Linear 2 weights and biases'''
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
                                      size=np.shape(set_s[i].actor.linear2.weight))
             noise = torch.FloatTensor(noise)
             noise = torch.mul(set_s[i].actor.linear2.weight.data, noise)
-            set_s[i].actor.linear2.weight.data = set_s[i].actor.linear2.weight.data + noise
+            set_s[i].actor.linear2.weight.data = copy.deepcopy(set_s[i].actor.linear2.weight.data + noise)
 
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
                                      size=np.shape(set_s[i].actor.linear2.bias))
             noise = torch.FloatTensor(noise)
             noise = torch.mul(set_s[i].actor.linear2.bias.data, noise)
-            set_s[i].actor.linear2.bias.data = set_s[i].actor.linear2.bias.data + noise
+            set_s[i].actor.linear2.bias.data = copy.deepcopy(set_s[i].actor.linear2.bias.data + noise)
 
             ''' Noise to mu layer weights and biases'''
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
                                      size=np.shape(set_s[i].actor.mu.weight))
             noise = torch.FloatTensor(noise)
             noise = torch.mul(set_s[i].actor.mu.weight.data, noise)
-            set_s[i].actor.mu.weight.data = set_s[i].actor.mu.weight.data + noise
+            set_s[i].actor.mu.weight.data = copy.deepcopy(set_s[i].actor.mu.weight.data + noise)
 
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
                                      size=np.shape(set_s[i].actor.mu.bias))
             noise = torch.FloatTensor(noise)
             noise = torch.mul(set_s[i].actor.mu.bias.data, noise)
-            set_s[i].actor.mu.bias.data = set_s[i].actor.mu.bias.data + noise
+            set_s[i].actor.mu.bias.data = copy.deepcopy(set_s[i].actor.mu.bias.data + noise)
 
         return set_s
 

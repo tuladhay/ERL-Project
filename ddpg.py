@@ -69,6 +69,15 @@ class Critic(nn.Module):
         self.bn0.weight.data.fill_(1)
         self.bn0.bias.data.fill_(0)
 
+        '''
+        Modifications to the code so that it uses the same layer units as the original paper
+        Uncomment the code below and change the hidden_size in the nn.linear declarations
+        '''
+        # print("Critic hidden nodes modified to match the original paper")
+        # critic_linear1_hidden_size = 200
+        # critic_laction_hidden_size = 200
+        # critic_linear2_hidden_size = 400
+        # print("Critic linear1 hidden size = 200")
         self.linear1 = nn.Linear(num_inputs, hidden_size)
         self.bn1 = nn.BatchNorm1d(hidden_size)
         self.bn1.weight.data.fill_(1)
@@ -89,10 +98,11 @@ class Critic(nn.Module):
         self.V.bias.data.mul_(0.1)
 
     def forward(self, inputs, actions):
+        # Read experimental details section from Evolutionary Reinforcement Learning (ERL) paper
         x = inputs
         x = self.bn0(x)
         x = F.tanh(self.linear1(x))
-        a = F.tanh(self.linear_action(actions))
+        a = F.tanh(self.linear_action(actions))    # Actions were not included until the second hidden layer of Q
         x = torch.cat((x, a), 1)
         x = F.tanh(self.linear2(x))
 
@@ -108,14 +118,15 @@ class DDPG(object):
 
         self.actor = Actor(hidden_size, self.num_inputs, self.action_space)
         self.actor_target = Actor(hidden_size, self.num_inputs, self.action_space)
-        self.actor_optim = Adam(self.actor.parameters(), lr=1e-4)
+        self.actor_optim = Adam(self.actor.parameters(), lr=5e-5)
 
         self.critic = Critic(hidden_size, self.num_inputs, self.action_space)
         self.critic_target = Critic(hidden_size, self.num_inputs, self.action_space)
-        self.critic_optim = Adam(self.critic.parameters(), lr=1e-3)
+        self.critic_optim = Adam(self.critic.parameters(), lr=5e-4)
 
         self.gamma = gamma
         self.tau = tau
+        self.fitness = 0.0
 
         hard_update(self.actor_target, self.actor)  # Make sure target is with the same weight
         hard_update(self.critic_target, self.critic)

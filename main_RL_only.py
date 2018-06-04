@@ -16,6 +16,7 @@ from normalized_actions import NormalizedActions
 from ounoise import OUNoise
 from replay_memory import ReplayMemory, Transition
 import pickle
+import copy
 
 
 def parse_arguments():
@@ -142,79 +143,63 @@ class Evo():
 
         self.save_fitness.append(elites[0].fitness)
 
-    def mutation(self, set):
+    def mutation(self, set_s):
         """
-        :param set: This is the set of (k-e) genes that are going to be mutated by adding noise
+        :param set_s: This is the set of (k-e) genes that are going to be mutated by adding noise
         :return: Returns the mutated set of (k-e) genes
 
         Adds noise to the weights and biases of each layer of the network
         But why is a noise (out of 1) being added? Since we cant really say how big or small the parameters should be.
         """
-        for gene in set:
+        for i in range(len(set_s)):
             ''' Noise to Linear 1 weights and biases'''
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set[0].actor.linear1.weight))
+                                     size=np.shape(set_s[i].actor.linear1.weight))
             noise = torch.FloatTensor(noise)
             # gene.actor.linear1.weight.data = gene.actor.linear1.weight.data + noise
-            noise = torch.mul(gene.actor.linear1.weight.data, noise)
-            gene.actor.linear1.weight.data = gene.actor.linear1.weight.data + noise
+            noise = torch.mul(set_s[i].actor.linear1.weight.data, noise)
+            set_s[i].actor.linear1.weight.data = copy.deepcopy(set_s[i].actor.linear1.weight.data + noise)
 
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set[0].actor.linear1.bias))
+                                     size=np.shape(set_s[i].actor.linear1.bias))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(gene.actor.linear1.bias.data, noise)
-            gene.actor.linear1.bias.data = gene.actor.linear1.bias.data + noise
+            noise = torch.mul(set_s[i].actor.linear1.bias.data, noise)
+            set_s[i].actor.linear1.bias.data = copy.deepcopy(set_s[i].actor.linear1.bias.data + noise)
 
             '''Noise to Linear 2 weights and biases'''
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set[0].actor.linear2.weight))
+                                     size=np.shape(set_s[i].actor.linear2.weight))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(gene.actor.linear2.weight.data, noise)
-            gene.actor.linear2.weight.data = gene.actor.linear2.weight.data + noise
+            noise = torch.mul(set_s[i].actor.linear2.weight.data, noise)
+            set_s[i].actor.linear2.weight.data = copy.deepcopy(set_s[i].actor.linear2.weight.data + noise)
 
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set[0].actor.linear2.bias))
+                                     size=np.shape(set_s[i].actor.linear2.bias))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(gene.actor.linear2.bias.data, noise)
-            gene.actor.linear2.bias.data = gene.actor.linear2.bias.data + noise
+            noise = torch.mul(set_s[i].actor.linear2.bias.data, noise)
+            set_s[i].actor.linear2.bias.data = copy.deepcopy(set_s[i].actor.linear2.bias.data + noise)
 
             ''' Noise to mu layer weights and biases'''
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set[0].actor.mu.weight))
+                                     size=np.shape(set_s[i].actor.mu.weight))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(gene.actor.mu.weight.data, noise)
-            gene.actor.mu.weight.data = gene.actor.mu.weight.data + noise
+            noise = torch.mul(set_s[i].actor.mu.weight.data, noise)
+            set_s[i].actor.mu.weight.data = copy.deepcopy(set_s[i].actor.mu.weight.data + noise)
 
             noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-                                     size=np.shape(set[0].actor.mu.bias))
+                                     size=np.shape(set_s[i].actor.mu.bias))
             noise = torch.FloatTensor(noise)
-            noise = torch.mul(gene.actor.mu.bias.data, noise)
-            gene.actor.mu.bias.data = gene.actor.mu.bias.data + noise
+            noise = torch.mul(set_s[i].actor.mu.bias.data, noise)
+            set_s[i].actor.mu.bias.data = copy.deepcopy(set_s[i].actor.mu.bias.data + noise)
 
-
-        # for gene in set:
-        #     param_list = list(gene.actor.parameters())
-        #     for i in range(len(param_list)):
-        #         '''
-        #         Loop through all the parameters in the actor network.
-        #         The params are the values of the weights and biases of the network.
-        #         for example: for a linear layer there will exist two params
-        #         You can figure out each param by looking at the Actor Class in ddpg.py
-        #         '''
-        #         noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
-        #                                  size=np.shape(param_list[i]))
-        #         noise = torch.FloatTensor(noise)
-        #             # TODO: HERE IS A PROBLEM, PARAM isnt updating anything!!!
-
-        return set
-
-
+        return set_s
 
 
 if __name__ == "__main__":
     parse_arguments()
     args = parser.parse_args()
-    args.env_name = "Swimmer-v2"
+    args.env_name = "HalfCheetah-v2"
+    print("Running environment" + str(args.env_name))
 
     env = NormalizedActions(gym.make(args.env_name))
     #env = wrappers.Monitor(env, '/tmp/{}-experiment'.format(args.env_name), force=True)
@@ -321,3 +306,11 @@ if __name__ == "__main__":
 
     env.close()
 
+    filename = args.env_name + "_RLonly_rewards_2000.p"
+    pickling_on = open(filename, "wb")
+    pickle.dump(rewards, pickling_on)
+    pickling_on.close()
+
+
+    filename = "params_RLonly_2000_" + args.env_name + ".pth"
+    torch.save(agent.actor.state_dict(), 'params_RLonly_2000_SwimmerV2.pth')

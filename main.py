@@ -42,7 +42,7 @@ def parse_arguments():
                         help='batch size (default: 128)')
     parser.add_argument('--num_steps', type=int, default=1000, metavar='N',
                         help='max episode length (default: 1000)')
-    parser.add_argument('--num_episodes', type=int, default=5000, metavar='N',
+    parser.add_argument('--num_episodes', type=int, default=2000, metavar='N',
                         help='number of episodes (default: 1000)')
     parser.add_argument('--hidden_size', type=int, default=128, metavar='N',
                         help='number of episodes (default: 128)')
@@ -96,25 +96,25 @@ class Evo:
         for gene in self.population:
             fitness = []
             for _ in range(self.evo_episodes):
-                state = torch.Tensor([env.reset()])
-                episode_reward = 0
+                evo_state = torch.Tensor([env.reset()])
+                evo_episode_reward = 0
                 for t in range(args.num_steps):
-                    action = gene.select_action(state)
-                    next_state, reward, done, _ = env.step(action.numpy()[0])
-                    episode_reward += reward
+                    evo_action = gene.select_action(evo_state)
+                    evo_next_state, evo_reward, evo_done, _ = env.step(evo_action.numpy()[0])
+                    evo_episode_reward += evo_reward
 
-                    action = torch.Tensor(action)
-                    mask = torch.Tensor([not done])
-                    next_state = torch.Tensor([next_state])
-                    reward = torch.Tensor([reward])
+                    evo_action = torch.Tensor(evo_action)
+                    evo_mask = torch.Tensor([not evo_done])
+                    evo_next_state = torch.Tensor([evo_next_state])
+                    evo_reward = torch.Tensor([evo_reward])
 
-                    memory.push(state, action, mask, next_state, reward)
-                    state = next_state
+                    memory.push(evo_state, evo_action, evo_mask, evo_next_state, evo_reward)
+                    evo_state = copy.copy(evo_next_state)
 
-                    if done:
+                    if evo_done:
                         break
                     # <end of time-steps>
-                fitness.append(episode_reward)
+                fitness.append(evo_episode_reward)
                 # <end of episodes>
             fitness = sum(fitness) / self.evo_episodes  # Algo2: 12
             gene.fitness = copy.copy(fitness)
@@ -236,6 +236,9 @@ if __name__ == "__main__":
     # TODO: MOVE THE TRAINING CODE BELOW TO ITS RESPECTIVE FUNCTIONS
     rewards = []
 
+    print("Number of hidden units = " + str(args.hidden_size))
+    print("Batch size = " + str(args.batch_size))
+    print("Number of episodes : " + str(args.num_episodes))
     for i_episode in range(args.num_episodes):
         '''
         Here, num_episodes correspond to the generations in Algo 1.
@@ -244,69 +247,79 @@ if __name__ == "__main__":
         evo.evaluate_pop()
         evo.rank_pop_selection_mutation()
 
-        print("Fitness = " + str(evo.best_policy.fitness))
+        print("Evolutionary Fitness = " + str(evo.best_policy.fitness))
 
-        ''' After this is the DDPG part. Commented out to test the evolutionary part'''
-        # if i_episode < args.num_episodes // 2:
-        #     state = torch.Tensor([env.reset()])     # algo line 6
-        #     ounoise.scale = (args.noise_scale - args.final_noise_scale) * max(0, args.exploration_end -
-        #                                                                       i_episode) / args.exploration_end + args.final_noise_scale
-        #     ounoise.reset()
-        #     episode_reward = 0
-        #     for t in range(args.num_steps):     # line 7
-        #         # forward pass through the actor network
-        #         action = agent.select_action(state, ounoise)    # line 8
-        #         next_state, reward, done, _ = env.step(action.numpy()[0])   # line 9
-        #         episode_reward += reward
-        #
-        #         action = torch.Tensor(action)
-        #         mask = torch.Tensor([not done])
-        #         next_state = torch.Tensor([next_state])
-        #         reward = torch.Tensor([reward])
-        #
-        #         if i_episode % 10 == 0:
-        #             env.render()
-        #
-        #         memory.push(state, action, mask, next_state, reward)    # line 10
-        #
-        #         state = next_state
-        #
-        #         if len(memory) > args.batch_size * 5:
-        #             for _ in range(args.updates_per_step):
-        #                 transitions = memory.sample(args.batch_size)    # line 11
-        #                 batch = Transition(*zip(*transitions))
-        #
-        #                 agent.update_parameters(batch)
-        #
-        #         if done:
-        #
-        #             break
-        #     rewards.append(episode_reward)
-        # else:
-        #     state = torch.Tensor([env.reset()])
-        #     episode_reward = 0
-        #     for t in range(args.num_steps):
-        #         action = agent.select_action(state)
-        #
-        #         next_state, reward, done, _ = env.step(action.numpy()[0])
-        #         episode_reward += reward
-        #
-        #         next_state = torch.Tensor([next_state])
-        #
-        #         if i_episode % 10 == 0:
-        #             env.render()
-        #
-        #         state = next_state
-        #         if done:
-        #             break
-        #
-        #     rewards.append(episode_reward)
-        # print("Episode: {}, noise: {}, reward: {}, average reward: {}".format(i_episode, ounoise.scale,
-        #                                                                       rewards[-1], np.mean(rewards[-100:])))
-        print("Episode: " + str(i_episode))
+        ''' The DDPG part'''
+        if i_episode < args.num_episodes // 2:
+            state = torch.Tensor([env.reset()])     # algo line 6
+            ounoise.scale = (args.noise_scale - args.final_noise_scale) * max(0, args.exploration_end -
+                                                                              i_episode) / args.exploration_end + args.final_noise_scale
+            ounoise.reset()
+            episode_reward = 0
+            for t in range(args.num_steps):     # line 7
+                # forward pass through the actor network
+                action = agent.select_action(state, ounoise)    # line 8
+                next_state, reward, done, _ = env.step(action.numpy()[0])   # line 9
+                episode_reward += reward
 
+                action = torch.Tensor(action)
+                mask = torch.Tensor([not done])
+                next_state = torch.Tensor([next_state])
+                reward = torch.Tensor([reward])
+
+                # if i_episode % 10 == 0:
+                #     env.render()
+
+                memory.push(state, action, mask, next_state, reward)    # line 10
+
+                state = next_state
+
+                if len(memory) > args.batch_size * 5:
+                    for _ in range(args.updates_per_step):
+                        transitions = memory.sample(args.batch_size)    # line 11
+                        batch = Transition(*zip(*transitions))
+
+                        agent.update_parameters(batch)
+
+                if done:
+                    break
+            rewards.append(episode_reward)
+        else:
+            state = torch.Tensor([env.reset()])
+            episode_reward = 0
+            for t in range(args.num_steps):
+                action = agent.select_action(state)
+
+                next_state, reward, done, _ = env.step(action.numpy()[0])
+                episode_reward += reward
+
+                next_state = torch.Tensor([next_state])
+
+                # if i_episode % 10 == 0:
+                #     env.render()
+
+                state = next_state
+                if done:
+                    break
+
+            rewards.append(episode_reward)
+
+        ''' Synchronization'''
+        if i_episode % 10 == 0:
+            weakest_in_pop_index = evo.population.index(min(evo.population, key=attrgetter('fitness')))
+            evo.population[weakest_in_pop_index] = copy.deepcopy(agent)
+
+        ''' Print the training performance'''
+        print("Episode: {}, noise: {}, reward: {}, average reward: {}".format(i_episode, ounoise.scale,
+                                                                              rewards[-1], np.mean(rewards[-10:])))
     env.close()
-    pickling_on = open("SwimmerV2.p", "wb")
+    pickling_on = open("SwimmerV2_ERL_fitness_1000.p", "wb")
     pickle.dump(evo.save_fitness, pickling_on)
     pickling_on.close()
-    torch.save(evo.best_policy.actor.state_dict(), 'trained_params_SwimmerV2.pth')
+
+    pickling_on = open("SwimmerV2_ERL_RL_rewards_1000.p", "wb")
+    pickle.dump(rewards, pickling_on)
+    pickling_on.close()
+
+    torch.save(evo.best_policy.actor.state_dict(), 'params_ERL_1000_SwimmerV2.pth')
+    torch.save(agent.actor.state_dict(), 'params_ERL_RL_1000_SwimmerV2.pth')

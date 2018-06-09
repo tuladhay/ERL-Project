@@ -193,13 +193,53 @@ class Evo:
             noise = torch.mul(set_s[i].actor.mu.bias.data, noise)
             set_s[i].actor.mu.bias.data = copy.deepcopy(set_s[i].actor.mu.bias.data + noise)
 
+            ''' LayerNorm 1'''
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set_s[i].actor.layerN1.weight))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(set_s[i].actor.layerN1.weight.data, noise)
+            set_s[i].actor.layerN1.weight.data = copy.deepcopy(set_s[i].actor.layerN1.weight.data + noise)
+
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set_s[i].actor.layerN1.bias))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(set_s[i].actor.layerN1.bias.data, noise)
+            set_s[i].actor.layerN1.bias.data = copy.deepcopy(set_s[i].actor.layerN1.bias.data + noise)
+
+            ''' LayerNorm 2'''
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set_s[i].actor.layerN2.weight))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(set_s[i].actor.layerN2.weight.data, noise)
+            set_s[i].actor.layerN2.weight.data = copy.deepcopy(set_s[i].actor.layerN2.weight.data + noise)
+
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set_s[i].actor.layerN2.bias))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(set_s[i].actor.layerN2.bias.data, noise)
+            set_s[i].actor.layerN2.bias.data = copy.deepcopy(set_s[i].actor.layerN2.bias.data + noise)
+
+            ''' LayerNorm MU'''
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set_s[i].actor.layerNmu.weight))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(set_s[i].actor.layerNmu.weight.data, noise)
+            set_s[i].actor.layerNmu.weight.data = copy.deepcopy(set_s[i].actor.layerNmu.weight.data + noise)
+
+            noise = np.random.normal(loc=self.noise_mean, scale=self.noise_stddev,
+                                     size=np.shape(set_s[i].actor.layerNmu.bias))
+            noise = torch.FloatTensor(noise)
+            noise = torch.mul(set_s[i].actor.layerNmu.bias.data, noise)
+            set_s[i].actor.layerNmu.bias.data = copy.deepcopy(set_s[i].actor.layerNmu.bias.data + noise)
+
         return set_s
 
 
 if __name__ == "__main__":
     parse_arguments()
     args = parser.parse_args()
-    args.env_name = "Swimmer-v2"
+    args.env_name = "HalfCheetah-v2"
+    print("Running environment" + str(args.env_name))
 
     env = NormalizedActions(gym.make(args.env_name))
     # env = wrappers.Monitor(env, '/tmp/{}-experiment'.format(args.env_name), force=True)
@@ -226,15 +266,18 @@ if __name__ == "__main__":
     memory = ReplayMemory(args.replay_size)
     ounoise = OUNoise(env.action_space.shape[0])
 
-
     '''
+    #############################
     Initialize the Evolution Part
+    #############################
     '''
     evo = Evo(10)
     evo.initialize_fitness()
 
     # TODO: MOVE THE TRAINING CODE BELOW TO ITS RESPECTIVE FUNCTIONS
-    rewards = []
+    rewards = []    # during training
+    rewards_test_ERL = []   # during testing ERL policy
+    rewards_test_DDPG = []
 
     print("Number of hidden units = " + str(args.hidden_size))
     print("Batch size = " + str(args.batch_size))
@@ -242,84 +285,145 @@ if __name__ == "__main__":
     for i_episode in range(args.num_episodes):
         '''
         Here, num_episodes correspond to the generations in Algo 1.
-        In every generation, the population is evaluated, ranked
+        In every generation, the population is evaluated, ranked, mutated, and re-instered into population
         '''
         evo.evaluate_pop()
         evo.rank_pop_selection_mutation()
 
         print("Evolutionary Fitness = " + str(evo.best_policy.fitness))
 
-        ''' The DDPG part'''
-        if i_episode < args.num_episodes // 2:
-            state = torch.Tensor([env.reset()])     # algo line 6
-            ounoise.scale = (args.noise_scale - args.final_noise_scale) * max(0, args.exploration_end -
-                                                                              i_episode) / args.exploration_end + args.final_noise_scale
-            ounoise.reset()
-            episode_reward = 0
-            for t in range(args.num_steps):     # line 7
-                # forward pass through the actor network
-                action = agent.select_action(state, ounoise)    # line 8
-                next_state, reward, done, _ = env.step(action.numpy()[0])   # line 9
-                episode_reward += reward
+        '''
+        #############
+        The DDPG part
+        #############
+        '''
+        state = torch.Tensor([env.reset()])     # algo line 6
+        ounoise.scale = (args.noise_scale - args.final_noise_scale) * max(0, args.exploration_end -
+                                                                          i_episode) / args.exploration_end + args.final_noise_scale
+        ounoise.reset()
+        episode_reward = 0
 
-                action = torch.Tensor(action)
-                mask = torch.Tensor([not done])
-                next_state = torch.Tensor([next_state])
-                reward = torch.Tensor([reward])
+        for t in range(args.num_steps):     # line 7
+            # forward pass through the actor network
+            action = agent.select_action(state, ounoise)    # line 8
+            next_state, reward, done, _ = env.step(action.numpy()[0])   # line 9
+            episode_reward += reward
 
-                # if i_episode % 10 == 0:
-                #     env.render()
+            action = torch.Tensor(action)
+            mask = torch.Tensor([not done])
+            next_state = torch.Tensor([next_state])
+            reward = torch.Tensor([reward])
 
-                memory.push(state, action, mask, next_state, reward)    # line 10
+            # if i_episode % 10 == 0:
+            #     env.render()
 
-                state = next_state
+            memory.push(state, action, mask, next_state, reward)    # line 10
 
-                if len(memory) > args.batch_size * 5:
-                    for _ in range(args.updates_per_step):
-                        transitions = memory.sample(args.batch_size)    # line 11
-                        batch = Transition(*zip(*transitions))
+            state = next_state
 
-                        agent.update_parameters(batch)
+            if len(memory) > args.batch_size * 5:
+                for _ in range(args.updates_per_step):
+                    transitions = memory.sample(args.batch_size)    # line 11
+                    batch = Transition(*zip(*transitions))
 
-                if done:
-                    break
-            rewards.append(episode_reward)
-        else:
-            state = torch.Tensor([env.reset()])
-            episode_reward = 0
-            for t in range(args.num_steps):
-                action = agent.select_action(state)
+                    agent.update_parameters(batch)
 
-                next_state, reward, done, _ = env.step(action.numpy()[0])
-                episode_reward += reward
+            if done:
+                break
+        rewards.append(episode_reward)
 
-                next_state = torch.Tensor([next_state])
-
-                # if i_episode % 10 == 0:
-                #     env.render()
-
-                state = next_state
-                if done:
-                    break
-
-            rewards.append(episode_reward)
-
-        ''' Synchronization'''
+        '''
+        ###############
+        Synchronization
+        ###############
+        '''
         if i_episode % 10 == 0:
             weakest_in_pop_index = evo.population.index(min(evo.population, key=attrgetter('fitness')))
             evo.population[weakest_in_pop_index] = copy.deepcopy(agent)
+            print("Synchronized")
+
+        '''
+        ##################
+        Run test episodes
+        ##################
+            >> First pick the agent with the best fitness in the population
+            >> Then run 5 episodes of that on the environment, and average the reward
+        
+        '''
+        test_actor_index = evo.population.index(max(evo.population, key=attrgetter('fitness')))
+        test_actor_ERL = copy.deepcopy(evo.population[test_actor_index])
+        test_episode_ERL_reward = 0.0
+
+        test_episode_DDPG_reward = 0.0
+
+        '''
+            ##############
+            Run ERL policy
+            ##############
+        '''
+        for j in range(3):
+            state = torch.Tensor([env.reset()])
+            test_episode_ERL_reward = 0.0
+            for t in range(args.num_steps):
+                # forward pass through the actor network
+                action = test_actor_ERL.select_action(state, exploration=None)
+                next_state, reward, done, _ = env.step(action.numpy()[0])
+                test_episode_ERL_reward += reward
+
+                next_state = torch.Tensor([next_state])
+                state = next_state
+
+                if done:
+                    break
+        test_episode_ERL_reward = np.mean(test_episode_ERL_reward)
+        rewards_test_ERL.append(test_episode_ERL_reward)
+        print("ERL Test Reward = " + str(test_episode_ERL_reward))
+        '''
+            ##################
+            Run DDPG policy
+            ##################
+        '''
+        for j in range(3):
+            state = torch.Tensor([env.reset()])
+            test_episode_DDPG_reward = 0.0
+            for t in range(args.num_steps):
+                # forward pass through the actor network
+                action = agent.select_action(state, exploration=None)
+                next_state, reward, done, _ = env.step(action.numpy()[0])
+                test_episode_DDPG_reward += reward
+
+                next_state = torch.Tensor([next_state])
+                state = next_state
+
+                if done:
+                    break
+        test_episode_DDPG_reward = np.mean(test_episode_DDPG_reward)
+        rewards_test_DDPG.append(test_episode_DDPG_reward)
+        print("DDPG Test Reward = " + str(test_episode_DDPG_reward))
 
         ''' Print the training performance'''
-        print("Episode: {}, noise: {}, reward: {}, average reward: {}".format(i_episode, ounoise.scale,
+        print("Training: Episode: {}, noise: {}, reward: {}, average reward: {}".format(i_episode, ounoise.scale,
                                                                               rewards[-1], np.mean(rewards[-10:])))
+        print()
+        print()
+
+
     env.close()
-    pickling_on = open("SwimmerV2_ERL_fitness_1000.p", "wb")
+    pickling_on = open("HalfCheetahV2_ERL_fitness_training_2000_LN.p", "wb")       # basically Shaw said this is not what you want to look at, instead see ERL testing rewards
     pickle.dump(evo.save_fitness, pickling_on)
     pickling_on.close()
 
-    pickling_on = open("SwimmerV2_ERL_RL_rewards_1000.p", "wb")
+    pickling_on = open("HalfCheetahV2_ERL_RL_rewards_training_2000_LN.p", "wb")        # basically Shaw said this is not what you want to look at, instead see ERL testing rewards
     pickle.dump(rewards, pickling_on)
     pickling_on.close()
 
-    torch.save(evo.best_policy.actor.state_dict(), 'params_ERL_1000_SwimmerV2.pth')
-    torch.save(agent.actor.state_dict(), 'params_ERL_RL_1000_SwimmerV2.pth')
+    pickling_on = open("HalfCheetah_ERL_rewards_testing_LN.p", "wb")
+    pickle.dump(rewards_test_ERL, pickling_on)
+    pickling_on.close()
+
+    pickling_on = open("HalfCheetah_RL_rewards_testing_LN.p", "wb")
+    pickle.dump(rewards_test_DDPG, pickling_on)
+    pickling_on.close()
+
+    torch.save(evo.best_policy.actor.state_dict(), 'params_ERL_2000_HalfCheetahV2_LN.pth')
+    torch.save(agent.actor.state_dict(), 'params_ERL_RL_2000_HalfCheetahV2_LN.pth')

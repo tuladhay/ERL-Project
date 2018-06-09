@@ -25,19 +25,14 @@ class Actor(nn.Module):
         self.action_space = action_space
         num_outputs = action_space.shape[0]
 
-        #self.bn0 = nn.BatchNorm1d(num_inputs)
-        #self.bn0.weight.data.fill_(1)
-        #self.bn0.bias.data.fill_(0)
+        ''' Lets see if LayerNorm will improve performance'''
+        self.layerN1 = nn.LayerNorm(num_inputs)
+        self.layerN2 = nn.LayerNorm(hidden_size)
+        self.layerNmu = nn.LayerNorm(hidden_size)
 
         self.linear1 = nn.Linear(num_inputs, hidden_size)   # has 2 parameters: weights, biases
-        #self.bn1 = nn.BatchNorm1d(hidden_size)
-        #self.bn1.weight.data.fill_(1)
-        #self.bn1.bias.data.fill_(0)
 
         self.linear2 = nn.Linear(hidden_size, hidden_size)
-        #self.bn2 = nn.BatchNorm1d(hidden_size)
-        #self.bn2.weight.data.fill_(1)
-        #self.bn2.bias.data.fill_(0)
         self.linear2.weight.data.mul_(10)
         self.linear2.bias.data.mul_(10)
 
@@ -51,8 +46,9 @@ class Actor(nn.Module):
 
     def forward(self, inputs):
         x = inputs
-        #x = self.bn0(x)
+        x = self.layerN1(x)
         x = F.tanh(self.linear1(x))
+        x = self.layerN2(x)
         x = F.tanh(self.linear2(x))
 
         mu = F.tanh(self.mu(x))

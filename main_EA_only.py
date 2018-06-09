@@ -42,7 +42,7 @@ def parse_arguments():
                         help='batch size (default: 128)')
     parser.add_argument('--num_steps', type=int, default=1000, metavar='N',
                         help='max episode length (default: 1000)')
-    parser.add_argument('--num_episodes', type=int, default=250, metavar='N',
+    parser.add_argument('--num_episodes', type=int, default=2000, metavar='N',
                         help='number of episodes (default: 1000)')
     parser.add_argument('--hidden_size', type=int, default=128, metavar='N',
                         help='number of episodes (default: 128)')
@@ -251,14 +251,14 @@ if __name__ == "__main__":
     '''
     DEFINE THE ACTOR RL AGENT
     '''
-    if args.algo == "NAF":
-        agent = NAF(args.gamma, args.tau, args.hidden_size,
-                    env.observation_space.shape[0], env.action_space)
-        print("Initialized NAF")
-    else:
-        agent = DDPG(args.gamma, args.tau, args.hidden_size,
-                     env.observation_space.shape[0], env.action_space)
-        print("Initialized DDPG actor")
+    # if args.algo == "NAF":
+    #     agent = NAF(args.gamma, args.tau, args.hidden_size,
+    #                 env.observation_space.shape[0], env.action_space)
+    #     print("Initialized NAF")
+    # else:
+    #     agent = DDPG(args.gamma, args.tau, args.hidden_size,
+    #                  env.observation_space.shape[0], env.action_space)
+    #     print("Initialized DDPG actor")
 
     '''
     DEFINE REPLAY BUFFER AND NOISE
@@ -276,8 +276,8 @@ if __name__ == "__main__":
 
     # TODO: MOVE THE TRAINING CODE BELOW TO ITS RESPECTIVE FUNCTIONS
     rewards = []  # during training
-    # rewards_test_ERL = []  # during testing ERL policy
-    rewards_test_DDPG = []
+    rewards_test_ERL = []  # during testing ERL policy
+    #rewards_test_DDPG = []
 
     print("Number of hidden units = " + str(args.hidden_size))
     print("Batch size = " + str(args.batch_size))
@@ -290,57 +290,57 @@ if __name__ == "__main__":
         evo.evaluate_pop()
         evo.rank_pop_selection_mutation()
 
-        print("Evolutionary Fitness = " + str(evo.best_policy.fitness))
+        print("Episode: "+str(i_episode) + "    Evolutionary Fitness = " + str(evo.best_policy.fitness))
 
         '''
         #############
         The DDPG part
         #############
         '''
-        state = torch.Tensor([env.reset()])  # algo line 6
-        ounoise.scale = (args.noise_scale - args.final_noise_scale) * max(0, args.exploration_end -
-                                                                          i_episode) / args.exploration_end + args.final_noise_scale
-        ounoise.reset()
-        episode_reward = 0
-
-        for t in range(args.num_steps):  # line 7
-            # forward pass through the actor network
-            action = agent.select_action(state, ounoise)  # line 8
-            next_state, reward, done, _ = env.step(action.numpy()[0])  # line 9
-            episode_reward += reward
-
-            action = torch.Tensor(action)
-            mask = torch.Tensor([not done])
-            next_state = torch.Tensor([next_state])
-            reward = torch.Tensor([reward])
-
-            # if i_episode % 10 == 0:
-            #     env.render()
-
-            memory.push(state, action, mask, next_state, reward)  # line 10
-
-            state = next_state
-
-            if len(memory) > args.batch_size * 5:
-                for _ in range(args.updates_per_step):
-                    transitions = memory.sample(args.batch_size)  # line 11
-                    batch = Transition(*zip(*transitions))
-
-                    agent.update_parameters(batch)
-
-            if done:
-                break
-        rewards.append(episode_reward)
-
-        '''
-        ###############
-        Synchronization
-        ###############
-        '''
+        # state = torch.Tensor([env.reset()])  # algo line 6
+        # ounoise.scale = (args.noise_scale - args.final_noise_scale) * max(0, args.exploration_end -
+        #                                                                   i_episode) / args.exploration_end + args.final_noise_scale
+        # ounoise.reset()
+        # episode_reward = 0
+        #
+        # for t in range(args.num_steps):  # line 7
+        #     # forward pass through the actor network
+        #     action = agent.select_action(state, ounoise)  # line 8
+        #     next_state, reward, done, _ = env.step(action.numpy()[0])  # line 9
+        #     episode_reward += reward
+        #
+        #     action = torch.Tensor(action)
+        #     mask = torch.Tensor([not done])
+        #     next_state = torch.Tensor([next_state])
+        #     reward = torch.Tensor([reward])
+        #
+        #     # if i_episode % 10 == 0:
+        #     #     env.render()
+        #
+        #     memory.push(state, action, mask, next_state, reward)  # line 10
+        #
+        #     state = next_state
+        #
+        #     if len(memory) > args.batch_size * 5:
+        #         for _ in range(args.updates_per_step):
+        #             transitions = memory.sample(args.batch_size)  # line 11
+        #             batch = Transition(*zip(*transitions))
+        #
+        #             agent.update_parameters(batch)
+        #
+        #     if done:
+        #         break
+        # rewards.append(episode_reward)
+        #
+        # '''
+        # ###############
+        # Synchronization
+        # ###############
+        # '''
         # if i_episode % 10 == 0:
-        #    weakest_in_pop_index = evo.population.index(min(evo.population, key=attrgetter('fitness')))
-        #    evo.population[weakest_in_pop_index] = copy.deepcopy(agent)
-        #    print("Synchronized")
+        #     weakest_in_pop_index = evo.population.index(min(evo.population, key=attrgetter('fitness')))
+        #     evo.population[weakest_in_pop_index] = copy.deepcopy(agent)
+        #     print("Synchronized")
 
         '''
         ##################
@@ -350,83 +350,82 @@ if __name__ == "__main__":
             >> Then run 5 episodes of that on the environment, and average the reward
 
         '''
-        # test_actor_index = evo.population.index(max(evo.population, key=attrgetter('fitness')))
-        # test_actor_ERL = copy.deepcopy(evo.population[test_actor_index])
-        # test_episode_ERL_reward = 0.0
+        test_actor_index = evo.population.index(max(evo.population, key=attrgetter('fitness')))
+        test_actor_ERL = copy.deepcopy(evo.population[test_actor_index])
+        test_episode_ERL_reward = 0.0
 
-        test_episode_DDPG_reward = 0.0
+        #test_episode_DDPG_reward = 0.0
 
         '''
             ##############
             Run ERL policy
             ##############
         '''
-        # for j in range(3):
-        #    state = torch.Tensor([env.reset()])
-        #    test_episode_ERL_reward = 0.0
-        #    for t in range(args.num_steps):
-        #        # forward pass through the actor network
-        #        action = test_actor_ERL.select_action(state, exploration=None)
-        #        next_state, reward, done, _ = env.step(action.numpy()[0])
-        #        test_episode_ERL_reward += reward
-
-        #       next_state = torch.Tensor([next_state])
-        #       state = next_state
-
-        #        if done:
-        #            break
-        # test_episode_ERL_reward = np.mean(test_episode_ERL_reward)
-        # rewards_test_ERL.append(test_episode_ERL_reward)
-        # print("ERL Test Reward = " + str(test_episode_ERL_reward))
-        '''
-            ##################
-            Run DDPG policy
-            ##################
-        '''
         for j in range(3):
             state = torch.Tensor([env.reset()])
-            test_episode_DDPG_reward = 0.0
+            test_episode_ERL_reward = 0.0
             for t in range(args.num_steps):
                 # forward pass through the actor network
-                action = agent.select_action(state, exploration=None)
+                action = test_actor_ERL.select_action(state, exploration=None)
                 next_state, reward, done, _ = env.step(action.numpy()[0])
-                test_episode_DDPG_reward += reward
+                test_episode_ERL_reward += reward
 
                 next_state = torch.Tensor([next_state])
                 state = next_state
 
                 if done:
                     break
-        test_episode_DDPG_reward = np.mean(test_episode_DDPG_reward)
-        rewards_test_DDPG.append(test_episode_DDPG_reward)
-        print("DDPG Test Reward = " + str(test_episode_DDPG_reward))
+        test_episode_ERL_reward = np.mean(test_episode_ERL_reward)
+        rewards_test_ERL.append(test_episode_ERL_reward)
+        print("              ERL Test Reward = " + str(test_episode_ERL_reward))
+        '''
+            ##################
+            Run DDPG policy
+            ##################
+        '''
+        # for j in range(3):
+        #     state = torch.Tensor([env.reset()])
+        #     test_episode_DDPG_reward = 0.0
+        #     for t in range(args.num_steps):
+        #         # forward pass through the actor network
+        #         action = agent.select_action(state, exploration=None)
+        #         next_state, reward, done, _ = env.step(action.numpy()[0])
+        #         test_episode_DDPG_reward += reward
+        #
+        #         next_state = torch.Tensor([next_state])
+        #         state = next_state
+        #
+        #         if done:
+        #             break
+        #test_episode_DDPG_reward = np.mean(test_episode_DDPG_reward)
+        #rewards_test_DDPG.append(test_episode_DDPG_reward)
+        #print("DDPG Test Reward = " + str(test_episode_DDPG_reward))
 
         ''' Print the training performance'''
-        print("Training: Episode: {}, noise: {}, reward: {}, average reward: {}".format(i_episode, ounoise.scale,
-                                                                                        rewards[-1],
-                                                                                        np.mean(rewards[-10:])))
+#        print("Training: Episode: {}, noise: {}, reward: {}, average reward: {}".format(i_episode, ounoise.scale,
+#                                                                                        rewards[-1],
+#                                                                                        np.mean(rewards[-10:])))
         print()
         print()
 
     env.close()
-
-    # pickling_on = open("HalfCheetahV2_ERL_fitness_training_2000_LN.p",
-    #                  "wb")  # basically Shaw said this is not what you want to look at, instead see ERL testing rewards
-    # pickle.dump(evo.save_fitness, pickling_on)
-    # pickling_on.close()
-
-    # pickling_on = open("HalfCheetahV2_ERL_RL_rewards_training_2000_LN.p",
-    #                  "wb")  # basically Shaw said this is not what you want to look at, instead see ERL testing rewards
-    # pickle.dump(rewards, pickling_on)
-    # pickling_on.close()
-
-    # pickling_on = open("HalfCheetah_ERL_rewards_testing_LN.p", "wb")
-    # pickle.dump(rewards_test_ERL, pickling_on)
-    # pickling_on.close()
-
-    pickling_on = open("Swimmer_RL_rewards_withERL_experiences_testing_LN_final.p", "wb")
-    pickle.dump(rewards_test_DDPG, pickling_on)
+    pickling_on = open("SwimmerV2_EVO_fitness_training_LN_final.p",
+                       "wb")  # basically Shaw said this is not what you want to look at, instead see ERL testing rewards
+    pickle.dump(evo.save_fitness, pickling_on)
     pickling_on.close()
 
-    # torch.save(evo.best_policy.actor.state_dict(), 'params_ERL_2000_HalfCheetahV2_LN.pth')
-    # torch.save(agent.actor.state_dict(), 'params_RL_HalfCheetahV2_LN_final.pth')
+    #pickling_on = open("HalfCheetahV2_ERL_RL_rewards_training_2000_LN.p",
+    #                   "wb")  # basically Shaw said this is not what you want to look at, instead see ERL testing rewards
+    #pickle.dump(rewards, pickling_on)
+    #pickling_on.close()
+
+    pickling_on = open("Swimmer_EVO_rewards_testing_LN_final.p", "wb")
+    pickle.dump(rewards_test_ERL, pickling_on)
+    pickling_on.close()
+
+    #pickling_on = open("HalfCheetah_RL_rewards_testing_LN.p", "wb")
+    #pickle.dump(rewards_test_DDPG, pickling_on)
+    #pickling_on.close()
+
+    torch.save(evo.best_policy.actor.state_dict(), 'params_EVO_SwimmerV2_LN_final.pth')
+    #torch.save(agent.actor.state_dict(), 'params_ERL_RL_2000_HalfCheetahV2_LN.pth')

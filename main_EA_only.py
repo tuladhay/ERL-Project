@@ -242,7 +242,7 @@ if __name__ == "__main__":
     print("Running environment" + str(args.env_name))
 
     env = NormalizedActions(gym.make(args.env_name))
-    # env = wrappers.Monitor(env, '/tmp/{}-experiment'.format(args.env_name), force=True)
+    env = wrappers.Monitor(env, '/tmp/{}-experiment'.format(args.env_name), force=True)
     env.seed(args.seed)
 
     torch.manual_seed(args.seed)

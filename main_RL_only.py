@@ -238,7 +238,7 @@ class Evo:
 if __name__ == "__main__":
     parse_arguments()
     args = parser.parse_args()
-    args.env_name = "Swimmer-v2"
+    args.env_name = "HalfCheetah-v2"
     print("Running environment" + str(args.env_name))
 
     env = NormalizedActions(gym.make(args.env_name))

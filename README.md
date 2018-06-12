@@ -1,18 +1,5 @@
 ### Description
-Reimplementation of [Continuous Deep Q-Learning with Model-based Acceleration](https://arxiv.org/pdf/1603.00748v1.pdf) and [Continuous control with deep reinforcement learning](https://arxiv.org/pdf/1509.02971.pdf).
+Implementation of Evolutionary Reinforcement Learning Paper by Shauharda Khadka and Kagan Tumer
 
-Contributions are welcome. If you know how to make it more stable, don't hesitate to send a pull request.
-
-### Run
-Use the default hyperparameters.
-
-#### For NAF:
-
-```
-python main.py --algo NAF --env-name HalfCheetah-v2
-```
-#### For DDPG
-
-```
-python main.py --algo DDPG --env-name HalfCheetah-v2
+This was done for a class project so things are not formatted very nicely.
 ```
